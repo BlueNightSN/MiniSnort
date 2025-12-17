@@ -133,7 +133,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Guard.cpp" />
     <ClCompile Include="MiniSnort.cpp" />
+    <ClCompile Include="Praser.cpp" />
+    <ClCompile Include="Sniffer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Guard.h" />
+    <ClInclude Include="Praser.h" />
+    <ClInclude Include="Sniffer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
