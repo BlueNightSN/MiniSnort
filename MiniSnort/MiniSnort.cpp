@@ -65,10 +65,12 @@ const pcap_if_t* UserChoice(const pcap_if_t* alldevs) {
     return c;
 }
 void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* packetData) {
-
+    std::cout << "-------------------------------------------------------------------------";
+    std::cout << "user Data:" << user << '\n';
     std::cout << "Packet length: " << packetHeader->len << " TimeStamp: " << packetHeader->ts.tv_sec <<" EtherType: ";
     EtherType(packetData);
     std::cout << '\n';
+    std::cout << "-------------------------------------------------------------------------";
 }
 void EtherType(const u_char* packetData) {
     //combine packetdata [12] and [13] to find the exact ethernet type

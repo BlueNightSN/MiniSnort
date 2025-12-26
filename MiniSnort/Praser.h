@@ -1,1 +1,13 @@
 #pragma once
+#include<pcap.h>
+class Praser {
+public:
+	//check how long is the packet and if can read from start point
+	bool CheckLimit(const pcap_pkthdr* packetHeader,int start,int AmountToRead);
+	//return the source mac address
+	u_char* SourceMAC(const u_char* packetData);
+	//return the destination mac address
+	u_char* DestMAC(const u_char* packetData);
+	//return value of the EtherType like IPv4 and such
+	int EtherType(const u_char* packetData);
+};
