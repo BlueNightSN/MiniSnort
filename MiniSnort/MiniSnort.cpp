@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pcap.h>
 #include "Sniffer.h"
+#include"Praser.h"
 void PrintInterfaces(const pcap_if_t* alldevs);
 const pcap_if_t* UserChoice(const pcap_if_t* alldevs);
 void PrintPacket(u_char* user, const pcap_pkthdr* packetHeader, const u_char* packetData);
@@ -9,6 +10,7 @@ int main()
 {
     // Get list of all capture devices
     Sniffer sniffer;
+    Praser praser;
     if (!sniffer.DiscoverInterfaces()) {
         std::cout << "Could not find network intefaces check if npcap installed or premissions";
         return 1;
@@ -28,7 +30,7 @@ int main()
         return 0;
     }
     
-    pcap_loop(handle, 10,PrintPacket , nullptr);
+    pcap_loop(handle, 10,PrintPacket , (u_char*) & praser);
     return 0;
 }
 void PrintInterfaces(const pcap_if_t* alldevs) {
@@ -65,22 +67,27 @@ const pcap_if_t* UserChoice(const pcap_if_t* alldevs) {
     return c;
 }
 void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* packetData) {
-    std::cout << "-------------------------------------------------------------------------";
-    std::cout << "user Data:" << user << '\n';
+    Praser* praser = reinterpret_cast<Praser*>(user);
+    std::cout << "\n-------------------------------------------------------------------------\n";
     std::cout << "Packet length: " << packetHeader->len << " TimeStamp: " << packetHeader->ts.tv_sec <<" EtherType: ";
-    EtherType(packetData);
-    std::cout << '\n';
-    std::cout << "-------------------------------------------------------------------------";
-}
-void EtherType(const u_char* packetData) {
-    //combine packetdata [12] and [13] to find the exact ethernet type
-    uint16_t EtherType = (packetData[12] << 8) | packetData[13];
-    if (EtherType == 0x0800) {
+    if (!praser->CheckLimit(packetHeader, 0, 14)) {
+        std::cout << "Packet too small for Ethernet header\n";
+        return;
+    }
+    uint16_t etherType = praser->EtherType(packetData);
+
+    std::cout << "EtherType: ";
+    if (etherType == 0x0800) {
         std::cout << "IPv4";
     }
-    else {
-        std::cout << "Not IPv4";
+    else if (etherType == 0x0806) {
+        std::cout << "ARP";
     }
+    else if (etherType == 0x86DD) {
+        std::cout << "IPv6";
+    }
+    else {
+        std::cout << "Unknown (0x" << std::hex << etherType << std::dec << ")";
+    }
+    std::cout << "\n-------------------------------------------------------------------------\n";
 }
-
-
