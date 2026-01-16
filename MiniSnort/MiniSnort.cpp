@@ -79,6 +79,12 @@ void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* pac
     std::cout << "EtherType: ";
     if (etherType == 0x0800) {
         std::cout << "IPv4";
+        //print sourceIP,DestIP,protocol
+        // will print IPv4 Fields for now
+           //if Protocol == 6 TCP
+                //print TCP info   
+           //if Protocol == 17 UDP
+                //print UDP info
     }
     else if (etherType == 0x0806) {
         std::cout << "ARP";

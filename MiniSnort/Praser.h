@@ -1,5 +1,13 @@
 #pragma once
 #include<pcap.h>
+struct IPv4info {
+	uint8_t protocol;
+	uint8_t headerLenght;
+	uint32_t srcIP;
+	uint32_t dstIP;
+	int offset;
+
+};
 class Praser {
 public:
 	//check how long is the packet and if can read from start point
@@ -10,4 +18,5 @@ public:
 	const u_char* DestMAC(const u_char* packetData);
 	//return value of the EtherType like IPv4 and such
 	uint16_t EtherType(const u_char* packetData);
+	
 };

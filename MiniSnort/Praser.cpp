@@ -14,4 +14,4 @@ uint16_t Praser::EtherType(const u_char* packetData) {
 	//combine packetdata [12] and [13] to find the exact ethernet type
 	//changed their types to unsigned to make sure i stay unsigned
 	return (uint16_t(packetData[12]) << 8) | uint16_t(packetData[13]);
-}
+} 
