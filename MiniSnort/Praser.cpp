@@ -103,6 +103,8 @@ bool Praser::ReadUDPInfo(const pcap_pkthdr* packetHeader, const u_char* packetDa
     //UDP length
     uint16_t Length = (uint16_t(packetData[l4Offset + 4]) << 8) | uint16_t(packetData[l4Offset + 5]);
     if (Length < 8) return false;
+    if (!CheckLimit(packetHeader, l4Offset, Length))
+        return false;
     //header
     uint8_t HeaderLength = 8;
     //payload
@@ -114,6 +116,28 @@ bool Praser::ReadUDPInfo(const pcap_pkthdr* packetHeader, const u_char* packetDa
     outInfo.headerLength = HeaderLength;
     outInfo.payloadOffset = PayLoad;
 
+    return true;
+
+}
+bool Praser::ReadICMPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, IcmpInfo& outInfo) {
+    //safety check minimum
+    if (!CheckLimit(packetHeader, l4Offset, 8))
+        return false;
+    //type
+    uint8_t Type = uint8_t(packetData[l4Offset + 0]);
+    //code
+    uint8_t code = uint8_t(packetData[l4Offset + 1]);
+    //checksum
+    uint16_t CheckSum = (uint16_t(packetData[l4Offset + 2]) << 8) | uint16_t(packetData[l4Offset + 3]);
+    //payload
+    int payload = l4Offset + 8;
+    //filling
+    outInfo.type = Type;
+    outInfo.code = code;
+    outInfo.checksum = CheckSum;
+    outInfo.headerLength = 8;
+    outInfo.payloadOffset = payload;
+     
     return true;
 
 }

@@ -22,6 +22,13 @@ struct UdpInfo {
 	uint8_t headerLength;
 	int payloadOffset;
 };
+struct IcmpInfo {
+	uint8_t type;
+	uint8_t code;
+	uint16_t checksum;
+	uint8_t headerLength;
+	int payloadOffset;
+};
 class Praser {
 public:
 	//check how long is the packet and if can read from start point
@@ -38,5 +45,7 @@ public:
 	bool ReadTCPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, TcpInfo& outInfo);
 	//UDPinfo
 	bool ReadUDPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, UdpInfo& outInfo);
+	//ICMPinfo
+	bool ReadICMPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, IcmpInfo& outInfo);
 
 };
