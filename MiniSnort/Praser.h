@@ -18,6 +18,7 @@ struct TcpInfo {
 struct UdpInfo {
 	uint16_t srcPort;
 	uint16_t dstPort;
+	uint16_t length;
 	uint8_t headerLength;
 	int payloadOffset;
 };
@@ -35,5 +36,7 @@ public:
 	bool ReadIPv4Info(const pcap_pkthdr* packetHeader, const u_char* packetData, int l3Offset, IPv4Info& outInfo);
 	//TCPinfo
 	bool ReadTCPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, TcpInfo& outInfo);
+	//UDPinfo
+	bool ReadUDPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, UdpInfo& outInfo);
 
 };

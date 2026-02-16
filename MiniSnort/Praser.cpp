@@ -92,3 +92,28 @@ bool Praser::ReadTCPInfo(const pcap_pkthdr* packetHeader, const u_char* packetDa
 
     return true;
 }
+bool Praser::ReadUDPInfo(const pcap_pkthdr* packetHeader, const u_char* packetData, int l4Offset, UdpInfo& outInfo) {
+    //check for min UDP header
+    if (!CheckLimit(packetHeader, l4Offset, 8))
+        return false;
+    // SourcePort (2 byte)
+    uint16_t SourcePort = (uint16_t(packetData[l4Offset + 0]) << 8) | uint16_t(packetData[l4Offset + 1]);
+    // DestinationPort (2 bytes)
+    uint16_t DstPort = (uint16_t(packetData[l4Offset + 2]) << 8) | uint16_t(packetData[l4Offset + 3]);
+    //UDP length
+    uint16_t Length = (uint16_t(packetData[l4Offset + 4]) << 8) | uint16_t(packetData[l4Offset + 5]);
+    if (Length < 8) return false;
+    //header
+    uint8_t HeaderLength = 8;
+    //payload
+    int PayLoad = l4Offset + 8;
+    //filling out
+    outInfo.srcPort = SourcePort;
+    outInfo.dstPort = DstPort;
+    outInfo.length = Length;
+    outInfo.headerLength = HeaderLength;
+    outInfo.payloadOffset = PayLoad;
+
+    return true;
+
+}
