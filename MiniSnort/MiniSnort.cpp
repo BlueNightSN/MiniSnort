@@ -2,21 +2,12 @@
 #include <pcap.h>
 #include "Sniffer.h"
 #include"Praser.h"
+#include "Guard.h"
+#include "ParsedPacket.h"
+#include "IPv4ArrivedRule.h"
 void PrintInterfaces(const pcap_if_t* alldevs);
 const pcap_if_t* UserChoice(const pcap_if_t* alldevs);
 void PrintPacket(u_char* user, const pcap_pkthdr* packetHeader, const u_char* packetData);
-struct ParsedPacket {
-    uint16_t etherType = 0;
-    bool hasIPv4 = false;
-    IPv4Info ipv4{};
-    enum class L4Type{None, TCP, UDP, ICMP, Other} l4Type = L4Type :: None;
-    bool hasTcp = false;
-    TcpInfo tcp{};
-    bool hasUdp = false;
-    UdpInfo udp{};
-    bool hasIcmp = false;
-    IcmpInfo icmp{};
-};
 bool PacketPipeline(const pcap_pkthdr* packetHeader, const u_char* packetData, Praser& praser, ParsedPacket& outPacket);
 static void PrintIPv4(uint32_t ip)
 {
@@ -26,6 +17,10 @@ static void PrintIPv4(uint32_t ip)
         << ((ip >> 8) & 0xFF) << "."
         << (ip & 0xFF);
 }
+struct CallbackContext {
+    Praser* praser;
+    Guard* guard;
+};
 int main()
 {
     // Get list of all capture devices
@@ -49,8 +44,13 @@ int main()
         std::cout << errbuf;
         return 0;
     }
+    Guard guard;
+    guard.AddRule(std::make_unique<IPv4ArrivedRule>());
+
+    CallbackContext ctx{ &praser,&guard };
     
-    pcap_loop(handle, 10,PrintPacket , (u_char*) & praser);
+    pcap_loop(handle, 10,PrintPacket , reinterpret_cast<u_char*>(&ctx));
+    pcap_close(handle);
     return 0;
 }
 void PrintInterfaces(const pcap_if_t* alldevs) {
@@ -83,11 +83,14 @@ const pcap_if_t* UserChoice(const pcap_if_t* alldevs) {
     for (; choice > 0; choice--) {
         c = c->next;
     }
-    std::cout << "\n The Choosen Device is: " << c->description << "\n";
+    std::cout << "\n The Choosen Device is: " << (c->description ? c->description : c->name) << "\n";
+
     return c;
 }
 void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* packetData) {
-    Praser* praser = reinterpret_cast<Praser*>(user);
+    CallbackContext* ctx = reinterpret_cast<CallbackContext*>(user);
+    Praser* praser = ctx->praser;
+    Guard* guard = ctx->guard;
 
     std::cout << "\n-------------------------------------------------------------------------\n";
     std::cout << "Packet len: " << packetHeader->len
@@ -96,7 +99,8 @@ void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* pac
 
     ParsedPacket parsed;
     bool ok = PacketPipeline(packetHeader, packetData, *praser, parsed);
-    if (!ok) {
+    if (!ok)
+    {
         std::cout << "\nParse failed\n";
         std::cout << "-------------------------------------------------------------------------\n";
         return;
@@ -104,10 +108,12 @@ void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* pac
 
     std::cout << " EtherType: ";
 
-    if (parsed.etherType == 0x0800) {
+    if (parsed.etherType == 0x0800)
+    {
         std::cout << "IPv4";
 
-        if (!parsed.hasIPv4) {
+        if (!parsed.hasIPv4)
+        {
             std::cout << "\nBad/Truncated IPv4 header\n";
             std::cout << "-------------------------------------------------------------------------\n";
             return;
@@ -119,40 +125,57 @@ void PrintPacket(u_char* user,const pcap_pkthdr* packetHeader, const u_char* pac
         PrintIPv4(parsed.ipv4.dstIP);
         std::cout << " Protocol: " << int(parsed.ipv4.protocol);
 
-        if (parsed.l4Type == ParsedPacket::L4Type::TCP && parsed.hasTcp) {
+        if (parsed.l4Type == ParsedPacket::L4Type::TCP && parsed.hasTcp)
+        {
             std::cout << "\nTCP SrcPort: " << parsed.tcp.srcPort
                 << " DstPort: " << parsed.tcp.dstPort
                 << " Flags: 0x" << std::hex << int(parsed.tcp.flags) << std::dec
                 << " HeaderLen: " << int(parsed.tcp.headerLength)
                 << " PayloadOffset: " << parsed.tcp.payloadOffset;
         }
-        else if (parsed.l4Type == ParsedPacket::L4Type::UDP && parsed.hasUdp) {
+        else if (parsed.l4Type == ParsedPacket::L4Type::UDP && parsed.hasUdp)
+        {
             std::cout << "\nUDP SrcPort: " << parsed.udp.srcPort
                 << " DstPort: " << parsed.udp.dstPort
                 << " Length: " << parsed.udp.length
                 << " HeaderLen: " << int(parsed.udp.headerLength)
                 << " PayloadOffset: " << parsed.udp.payloadOffset;
         }
-        else if (parsed.l4Type == ParsedPacket::L4Type::ICMP && parsed.hasIcmp) {
+        else if (parsed.l4Type == ParsedPacket::L4Type::ICMP && parsed.hasIcmp)
+        {
             std::cout << "\nICMP Type: " << int(parsed.icmp.type)
                 << " Code: " << int(parsed.icmp.code)
                 << " Checksum: 0x" << std::hex << parsed.icmp.checksum << std::dec
                 << " HeaderLen: " << int(parsed.icmp.headerLength)
                 << " PayloadOffset: " << parsed.icmp.payloadOffset;
         }
-        else if (parsed.l4Type == ParsedPacket::L4Type::Other) {
+        else if (parsed.l4Type == ParsedPacket::L4Type::Other)
+        {
             std::cout << "\nUnsupported IPv4 L4 protocol: " << int(parsed.ipv4.protocol);
         }
     }
-    else if (parsed.etherType == 0x0806) {
+    else if (parsed.etherType == 0x0806)
+    {
         std::cout << "ARP";
     }
-    else if (parsed.etherType == 0x86DD) {
+    else if (parsed.etherType == 0x86DD)
+    {
         std::cout << "IPv6";
     }
-    else {
+    else
+    {
         std::cout << "Unknown (0x" << std::hex << parsed.etherType << std::dec << ")";
     }
+
+    // ---- Guard integration -----------------------
+    std::vector<Alert> alerts = guard->Inspect(parsed);
+    for (const Alert& a : alerts)
+    {
+        std::cout << "\n[ALERT] " << int(a.severity)
+            << " | " << a.ruleName
+            << " | " << a.message;
+    }
+    // -----------------------------------------------
 
     std::cout << "\n-------------------------------------------------------------------------\n";
 }

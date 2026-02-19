@@ -142,6 +142,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Guard.h" />
+    <ClInclude Include="IPv4ArrivedRule.h" />
+    <ClInclude Include="ParsedPacket.h" />
     <ClInclude Include="Praser.h" />
     <ClInclude Include="Sniffer.h" />
   </ItemGroup>

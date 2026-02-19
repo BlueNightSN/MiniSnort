@@ -38,5 +38,11 @@
     <ClInclude Include="Guard.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ParsedPacket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IPv4ArrivedRule.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
