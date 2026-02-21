@@ -135,12 +135,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Guard.cpp" />
     <ClCompile Include="MiniSnort.cpp" />
     <ClCompile Include="Praser.cpp" />
     <ClCompile Include="Sniffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="Guard.h" />
     <ClInclude Include="IPv4ArrivedRule.h" />
     <ClInclude Include="ParsedPacket.h" />
