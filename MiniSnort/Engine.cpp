@@ -52,108 +52,20 @@ void Engine::Run() {
         return;
     }
 
-    // You had 10 packets in pcap_loop(handle, 10, ...).
-    // Here: same idea, we’ll process 10 packets to match behavior.
-    int packetsToProcess = 10;
+    m_stop.store(false);
 
-    while (!m_stop && packetsToProcess > 0)
-    {
-        pcap_pkthdr* header = nullptr;
-        const u_char* data = nullptr;
+    m_producerThread = std::thread(&Engine::ProducerLoop, this);
+    m_consumerThread = std::thread(&Engine::ConsumerLoop, this);
 
-        if (!CaptureOne(header, data))
-        {
-            // timeout or error - just continue like your callback-based flow
-            continue;
-        }
+    if (m_producerThread.joinable())
+        m_producerThread.join();
 
-        std::cout << "\n-------------------------------------------------------------------------\n";
-        std::cout << "Packet len: " << header->len
-            << " caplen: " << header->caplen
-            << " TimeStamp: " << header->ts.tv_sec;
-
-        ParsedPacket parsed{};
-        bool ok = ParsePacket(header, data, parsed);
-        if (!ok)
-        {
-            std::cout << "\nParse failed\n";
-            std::cout << "-------------------------------------------------------------------------\n";
-            packetsToProcess--;
-            continue;
-        }
-
-        std::cout << " EtherType: ";
-
-        if (parsed.etherType == 0x0800)
-        {
-            std::cout << "IPv4";
-
-            if (!parsed.hasIPv4)
-            {
-                std::cout << "\nBad/Truncated IPv4 header\n";
-                std::cout << "-------------------------------------------------------------------------\n";
-                packetsToProcess--;
-                continue;
-            }
-
-            std::cout << "\nIPv4 Src: ";
-            PrintIPv4(parsed.ipv4.srcIP);
-            std::cout << " Dst: ";
-            PrintIPv4(parsed.ipv4.dstIP);
-            std::cout << " Protocol: " << int(parsed.ipv4.protocol);
-
-            if (parsed.l4Type == ParsedPacket::L4Type::TCP && parsed.hasTcp)
-            {
-                std::cout << "\nTCP SrcPort: " << parsed.tcp.srcPort
-                    << " DstPort: " << parsed.tcp.dstPort
-                    << " Flags: 0x" << std::hex << int(parsed.tcp.flags) << std::dec
-                    << " HeaderLen: " << int(parsed.tcp.headerLength)
-                    << " PayloadOffset: " << parsed.tcp.payloadOffset;
-            }
-            else if (parsed.l4Type == ParsedPacket::L4Type::UDP && parsed.hasUdp)
-            {
-                std::cout << "\nUDP SrcPort: " << parsed.udp.srcPort
-                    << " DstPort: " << parsed.udp.dstPort
-                    << " Length: " << parsed.udp.length
-                    << " HeaderLen: " << int(parsed.udp.headerLength)
-                    << " PayloadOffset: " << parsed.udp.payloadOffset;
-            }
-            else if (parsed.l4Type == ParsedPacket::L4Type::ICMP && parsed.hasIcmp)
-            {
-                std::cout << "\nICMP Type: " << int(parsed.icmp.type)
-                    << " Code: " << int(parsed.icmp.code)
-                    << " Checksum: 0x" << std::hex << parsed.icmp.checksum << std::dec
-                    << " HeaderLen: " << int(parsed.icmp.headerLength)
-                    << " PayloadOffset: " << parsed.icmp.payloadOffset;
-            }
-            else if (parsed.l4Type == ParsedPacket::L4Type::Other)
-            {
-                std::cout << "\nUnsupported IPv4 L4 protocol: " << int(parsed.ipv4.protocol);
-            }
-        }
-        else if (parsed.etherType == 0x0806)
-        {
-            std::cout << "ARP";
-        }
-        else if (parsed.etherType == 0x86DD)
-        {
-            std::cout << "IPv6";
-        }
-        else
-        {
-            std::cout << "Unknown (0x" << std::hex << parsed.etherType << std::dec << ")";
-        }
-
-        // Guard + alerts
-        CheckRulesAndReport(parsed);
-
-        std::cout << "\n-------------------------------------------------------------------------\n";
-
-        packetsToProcess--;
-    }
+    if (m_consumerThread.joinable())
+        m_consumerThread.join();
 }
 void Engine::Stop() {
-    m_stop = true;
+    m_stop.store(true);
+    m_cv.notify_all();
 }
 bool Engine::OpenDevice(const std::string& deviceName) {
     char errbuf[PCAP_ERRBUF_SIZE]{};
