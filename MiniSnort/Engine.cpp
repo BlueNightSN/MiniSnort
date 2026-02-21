@@ -236,3 +236,72 @@ void Engine::CheckRulesAndReport(const ParsedPacket& packet) {
         std::cout << "\n[ALERT] " << int(a.severity) << " | " << a.ruleName << " | " << a.message;
     }
 }
+void Engine::ProducerLoop()
+{
+    // Match your old behavior: process 10 packets (like pcap_loop(handle, 10, ...))
+    int packetsToProcess = 10;
+
+    while (!m_stop.load() && packetsToProcess > 0)
+    {
+        pcap_pkthdr* header = nullptr;
+        const u_char* data = nullptr;
+
+        if (!CaptureOne(header, data))
+        {
+            // timeout or capture error -> just continue trying
+            continue;
+        }
+
+        ParsedPacket parsed{};
+        bool ok = ParsePacket(header, data, parsed);
+
+        // Even if parsing fails, we still counted a captured packet in the old code (pcap_loop)
+        packetsToProcess--;
+
+        if (!ok)
+        {
+            // Optional: you can log parse failure here, but keep it minimal for threaded v1
+            continue;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(m_queueMutex);
+            m_queue.push(std::move(parsed));
+        }
+
+        m_cv.notify_one();
+    }
+
+    // Tell consumer "no more packets will arrive"
+    m_stop.store(true);
+    m_cv.notify_all();
+}
+void Engine::ConsumerLoop()
+{
+    while (true)
+    {
+        ParsedPacket pkt{};
+
+        {
+            std::unique_lock<std::mutex> lock(m_queueMutex);
+
+            // Wake when there's data OR we are stopping
+            m_cv.wait(lock, [this]()
+                {
+                    return m_stop.load() || !m_queue.empty();
+                });
+
+            // If stopping and nothing left to process -> exit cleanly
+            if (m_stop.load() && m_queue.empty())
+            {
+                break;
+            }
+
+            pkt = std::move(m_queue.front());
+            m_queue.pop();
+        }
+
+        // IMPORTANT: do rule evaluation OUTSIDE the lock
+        CheckRulesAndReport(pkt);
+    }
+}
