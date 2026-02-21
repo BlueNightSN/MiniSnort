@@ -6,9 +6,9 @@
 #include <condition_variable>
 #include <queue>
 #include <atomic>
+#include "ParsedPacket.h"
 class Praser;
 class Guard;
-struct ParsedPacket;
 
 class Engine
 {
@@ -32,6 +32,9 @@ private:
 	bool CaptureOne(pcap_pkthdr*& outHeader, const u_char*& outData);
 	bool ParsePacket(const pcap_pkthdr* header, const u_char* data, ParsedPacket& outPacket);
 	void CheckRulesAndReport(const ParsedPacket& packet);
+	//for multi-threading
+	void ProducerLoop();
+	void ConsumerLoop();
 	//varibales
 	pcap_t* m_handle = nullptr;
 	std::atomic<bool> m_stop{ false };
