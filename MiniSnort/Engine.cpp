@@ -22,6 +22,11 @@ Engine::Engine() = default;
 Engine::~Engine() 
 {
     Stop();
+    if (m_producerThread.joinable())
+        m_producerThread.join();
+
+    if (m_consumerThread.joinable())
+        m_consumerThread.join();
     CloseDevice();
 
     delete m_praser;
@@ -30,7 +35,7 @@ Engine::~Engine()
     m_guard = nullptr;
 }
 bool Engine::Init(const std::string& deviceName) {
-    m_stop = false;
+    m_stop.store(false);
     if (!OpenDevice(deviceName))
     {
         return false;
